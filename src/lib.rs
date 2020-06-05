@@ -1,4 +1,4 @@
-//!Utilities
+//!Static string buffer
 #![warn(missing_docs)]
 
 #![no_std]
