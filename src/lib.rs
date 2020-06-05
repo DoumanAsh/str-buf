@@ -4,7 +4,7 @@
 #![no_std]
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::style))]
 
-use core::{mem, slice, ptr, cmp, ops, hash};
+use core::{mem, slice, ptr, cmp, ops, hash, borrow};
 
 ///Stack based string.
 ///
@@ -222,6 +222,13 @@ impl<S: Sized> AsMut<[u8]> for StrBuf<S> {
     #[inline(always)]
     fn as_mut(&mut self) -> &mut [u8] {
         self.as_mut_slice()
+    }
+}
+
+impl<S: Sized> borrow::Borrow<str> for StrBuf<S> {
+    #[inline(always)]
+    fn borrow(&self) -> &str {
+        self.as_str()
     }
 }
 
