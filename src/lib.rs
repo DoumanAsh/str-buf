@@ -57,6 +57,18 @@ impl<S: Sized> StrBuf<S> {
     }
 
     #[inline]
+    ///Creates new instance from supplied storage and written size.
+    ///
+    ///It is unsafe, because there is no guarantee that storage is correctly initialized with UTF-8
+    ///bytes.
+    pub const unsafe fn from_storage(storage: S, cursor: u8) -> Self {
+        Self {
+            inner: mem::MaybeUninit::new(storage),
+            cursor,
+        }
+    }
+
+    #[inline]
     ///Creates new instance from existing slice with panic on overflow
     pub fn from_str(text: &str) -> Self {
         debug_assert!(text.len() <= Self::capacity());
