@@ -20,6 +20,8 @@ mod serde;
 ///
 ///Storage `T` is always interpreted as array of bytes.
 ///
+///When attempting to create new instance from `&str` it panics on overflow in debug mode.
+///
 ///```
 ///use str_buf::StrBuf;
 ///use core::mem;
@@ -32,6 +34,9 @@ mod serde;
 ///assert_ne!(mem::size_of::<MyStr>(), mem::size_of::<String>());
 ///assert_eq!(mem::size_of::<StrBuf::<[u8; mem::size_of::<String>() - 1]>>(), mem::size_of::<String>());
 ///
+///let text: MyStr = "test".into();
+///assert_eq!("test", text);
+///assert_eq!(text, "test");
 ///let mut text = MyStr::new();
 ///let _ = write!(text, "test {}", "hello world");
 ///assert_eq!(text.as_str(), "test hello world");
@@ -269,6 +274,35 @@ impl<S: Sized> PartialEq<StrBuf<S>> for StrBuf<S> {
     }
 }
 
+impl<S: Sized> PartialEq<StrBuf<S>> for &str {
+    #[inline(always)]
+    fn eq(&self, other: &StrBuf<S>) -> bool {
+        *self == other.as_str()
+    }
+}
+
+
+impl<S: Sized> PartialEq<StrBuf<S>> for str {
+    #[inline(always)]
+    fn eq(&self, other: &StrBuf<S>) -> bool {
+        self == other.as_str()
+    }
+}
+
+impl<S: Sized> PartialEq<str> for StrBuf<S> {
+    #[inline(always)]
+    fn eq(&self, other: &str) -> bool {
+        self.as_str() == other
+    }
+}
+
+impl<S: Sized> PartialEq<&str> for StrBuf<S> {
+    #[inline(always)]
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == *other
+    }
+}
+
 impl<S: Sized> cmp::Ord for StrBuf<S> {
     fn cmp(&self, other: &Self) -> cmp::Ordering {
         self.as_str().cmp(other.as_str())
@@ -284,5 +318,14 @@ impl<S: Sized> PartialOrd for StrBuf<S> {
 impl<S: Sized> hash::Hash for StrBuf<S> {
     fn hash<H: hash::Hasher>(&self, hasher: &mut H) {
         self.as_str().hash(hasher)
+    }
+}
+
+impl<S: Sized> From<&str> for StrBuf<S> {
+    fn from(text: &str) -> Self {
+        debug_assert!(text.len() <= Self::capacity());
+        let mut res = Self::new();
+        res.push_str(text);
+        res
     }
 }
