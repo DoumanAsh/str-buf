@@ -1,6 +1,6 @@
 [package]
 name = "str-buf"
-version = "1.0.2"
+version = "1.0.3"
 authors = ["Douman <douman@gmx.se>"]
 edition = "2018"
 description = "Static string buffer"
@@ -14,3 +14,8 @@ include = [
     "Cargo.toml",
     "README.md"
 ]
+
+[dependencies.serde]
+version = "1"
+optional = true
+default-features = false
