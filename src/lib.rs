@@ -322,10 +322,8 @@ impl<S: Sized> hash::Hash for StrBuf<S> {
 }
 
 impl<S: Sized> From<&str> for StrBuf<S> {
+    #[inline(always)]
     fn from(text: &str) -> Self {
-        debug_assert!(text.len() <= Self::capacity());
-        let mut res = Self::new();
-        res.push_str(text);
-        res
+        Self::from_str(text)
     }
 }
