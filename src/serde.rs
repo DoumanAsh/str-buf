@@ -10,19 +10,34 @@ impl<S: Sized> Serialize for StrBuf<S> {
     }
 }
 
-impl<'a, S: Sized> Deserialize<'a> for StrBuf<S> {
-    fn deserialize<D: Deserializer<'a>>(des: D) -> Result<Self, D::Error> {
-        let text: &'a str = Deserialize::deserialize(des)?;
+struct StrBufVisitor<S>(core::marker::PhantomData<S>);
 
-        if text.len() <= Self::capacity() {
-            let mut result = Self::new();
+impl<'de, S: Sized> serde::de::Visitor<'de> for StrBufVisitor<S> {
+    type Value = StrBuf<S>;
+
+    #[inline(always)]
+    fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
+        formatter.write_str("a string buffer")
+    }
+
+    #[inline]
+    fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
+        if v.len() <= Self::Value::capacity() {
+            let mut result = Self::Value::new();
             unsafe {
-                result.push_str_unchecked(text);
+                result.push_str_unchecked(v);
             }
             Ok(result)
         } else {
-            Err(serde::de::Error::custom(format_args!("Exceeds buffer capacity({} bytes)", Self::capacity())))
+            Err(serde::de::Error::custom(format_args!("Exceeds buffer capacity({} bytes)", Self::Value::capacity())))
         }
+    }
+}
+
+impl<'a, S: Sized> Deserialize<'a> for StrBuf<S> {
+    #[inline]
+    fn deserialize<D: Deserializer<'a>>(des: D) -> Result<Self, D::Error> {
+        des.deserialize_str(StrBufVisitor(core::marker::PhantomData))
     }
 }
 
