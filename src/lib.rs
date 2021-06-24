@@ -34,7 +34,8 @@ impl fmt::Display for StrBufError {
 ///It's size is `mem::size_of::<T>() + mem::size_of::<u8>()`, but remember that it can be padded.
 ///Can store up to `u8::max_value()` as anything bigger makes a little sense.
 ///
-///Storage `T` is always interpreted as array of bytes.
+///Storage is always capped at `u8::max_value()`, once panic are allowed inside `const fn`,
+///creating buffer with invalid storage will panic.
 ///
 ///When attempting to create new instance from `&str` it panics on overflow in debug mode.
 ///
@@ -191,7 +192,11 @@ impl<const N: usize> StrBuf<N> {
     #[inline]
     ///Returns buffer overall capacity.
     pub const fn capacity() -> usize {
-        N
+        if N > u8::max_value() as usize {
+            u8::max_value() as usize
+        } else {
+            N
+        }
     }
 
     #[inline]
@@ -241,7 +246,7 @@ impl<const N: usize> StrBuf<N> {
         let mut idx = 0;
         while idx < bytes.len() {
             self.inner[self.cursor as usize] = mem::MaybeUninit::new(bytes[idx]);
-            self.cursor += 1;
+            self.cursor = self.cursor.saturating_add(1);
             idx += 1;
         }
 
