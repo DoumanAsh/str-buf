@@ -1,6 +1,6 @@
 [package]
 name = "str-buf"
-version = "2.0.1"
+version = "2.0.2"
 authors = ["Douman <douman@gmx.se>"]
 edition = "2018"
 description = "Static string buffer"

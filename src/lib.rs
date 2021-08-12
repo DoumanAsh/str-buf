@@ -135,6 +135,12 @@ impl<const N: usize> StrBuf<N> {
     }
 
     #[inline]
+    ///Returns pointer  to the beginning of underlying buffer
+    pub fn as_mut_ptr(&mut self) -> *mut u8 {
+        self.inner.as_mut_ptr() as *mut u8
+    }
+
+    #[inline]
     ///Returns number of bytes left (not written yet)
     pub const fn remaining(&self) -> usize {
         Self::capacity() - self.cursor as usize
