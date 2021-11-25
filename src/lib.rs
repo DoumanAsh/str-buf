@@ -1,8 +1,9 @@
-//!Static string buffer
+//! Static string buffer
 //!
-//!Features:
+//! Features:
 //!
-//!- `serde` Enables serde serialization. In case of overflow, deserialize fails.
+//! - `serde` Enables serde serialization. In case of overflow, deserialize fails.
+
 #![warn(missing_docs)]
 #![no_std]
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::style))]
@@ -13,7 +14,7 @@ use core::{borrow, cmp, convert::TryFrom, fmt, hash, mem, ops, ptr, slice};
 mod serde;
 
 #[derive(Debug, Clone)]
-///`StrBuf` conversion error
+/// `StrBuf` conversion error
 pub enum StrBufError {
     ///Not enough space for string to be converted into `StrBuf`.
     Overflow,
@@ -81,7 +82,7 @@ pub struct StrBuf<const N: usize> {
 
 impl<const N: usize> StrBuf<N> {
     #[inline]
-    ///Creates new instance
+    /// Creates new instance
     pub const fn new() -> Self {
         Self {
             inner: [mem::MaybeUninit::uninit(); N],
@@ -90,10 +91,10 @@ impl<const N: usize> StrBuf<N> {
     }
 
     #[inline]
-    ///Creates new instance from supplied storage and written size.
+    /// Creates new instance from supplied storage and written size.
     ///
-    ///It is unsafe, because there is no guarantee that storage is correctly initialized with UTF-8
-    ///bytes.
+    /// It is unsafe, because there is no guarantee that storage is correctly initialized with UTF-8
+    /// bytes.
     pub const unsafe fn from_storage(storage: [mem::MaybeUninit<u8>; N], cursor: u8) -> Self {
         Self {
             inner: storage,
@@ -102,7 +103,7 @@ impl<const N: usize> StrBuf<N> {
     }
 
     #[inline]
-    ///Creates new instance from existing slice with panic on overflow
+    /// Creates new instance from existing slice with panic on overflow
     pub const fn from_str(text: &str) -> Self {
         let mut storage = [mem::MaybeUninit::<u8>::uninit(); N];
 
@@ -116,7 +117,7 @@ impl<const N: usize> StrBuf<N> {
     }
 
     #[inline]
-    ///Creates new instance from existing slice which returns error on overflow
+    /// Creates new instance from existing slice which returns error on overflow
     pub const fn from_str_checked(text: &str) -> Result<Self, StrBufError> {
         if text.len() <= Self::capacity() {
             Ok(Self::from_str(text))
@@ -126,43 +127,43 @@ impl<const N: usize> StrBuf<N> {
     }
 
     #[inline]
-    ///Returns pointer  to the beginning of underlying buffer
+    /// Returns pointer  to the beginning of underlying buffer
     pub const fn as_ptr(&self) -> *const u8 {
         &self.inner as *const _ as *const u8
     }
 
     #[inline]
-    ///Returns pointer  to the beginning of underlying buffer
+    /// Returns pointer  to the beginning of underlying buffer
     pub fn as_mut_ptr(&mut self) -> *mut u8 {
         self.inner.as_mut_ptr() as *mut u8
     }
 
     #[inline]
-    ///Returns number of bytes left (not written yet)
+    /// Returns number of bytes left (not written yet)
     pub const fn remaining(&self) -> usize {
         Self::capacity() - self.cursor as usize
     }
 
     #[inline]
-    ///Returns slice to already written data.
+    /// Returns slice to already written data.
     pub fn as_slice(&self) -> &[u8] {
         unsafe { slice::from_raw_parts(self.as_ptr(), self.cursor as usize) }
     }
 
     #[inline]
-    ///Returns mutable slice to already written data.
+    /// Returns mutable slice to already written data.
     pub fn as_mut_slice(&mut self) -> &mut [u8] {
         unsafe { slice::from_raw_parts_mut(self.as_ptr() as *mut u8, self.cursor as usize) }
     }
 
     #[inline]
-    ///Returns mutable slice with unwritten parts of the buffer.
+    /// Returns mutable slice with unwritten parts of the buffer.
     pub fn as_write_slice(&mut self) -> &mut [mem::MaybeUninit<u8>] {
         &mut self.inner[self.cursor as usize..]
     }
 
     #[inline(always)]
-    ///Clears the content of buffer.
+    /// Clears the content of buffer.
     pub fn clear(&mut self) {
         unsafe {
             self.truncate(0);
@@ -170,18 +171,18 @@ impl<const N: usize> StrBuf<N> {
     }
 
     #[inline(always)]
-    ///Returns empty self.
+    /// Returns empty self.
     pub const fn empty(mut self) -> Self {
         self.cursor = 0;
         self
     }
 
     #[inline]
-    ///Shortens the buffer, keeping the first `cursor` elements.
+    /// Shortens the buffer, keeping the first `cursor` elements.
     ///
-    ///Does nothing if new `cursor` is after current position.
+    /// Does nothing if new `cursor` is after current position.
     ///
-    ///Unsafe as it is up to user to consider character boundary
+    /// Unsafe as it is up to user to consider character boundary
     pub unsafe fn truncate(&mut self, cursor: u8) {
         if cursor < self.cursor {
             self.set_len(cursor);
@@ -189,7 +190,7 @@ impl<const N: usize> StrBuf<N> {
     }
 
     #[inline]
-    ///Returns buffer overall capacity.
+    /// Returns buffer overall capacity.
     pub const fn capacity() -> usize {
         if N > u8::max_value() as usize {
             u8::max_value() as usize
@@ -199,19 +200,19 @@ impl<const N: usize> StrBuf<N> {
     }
 
     #[inline]
-    ///Returns number of bytes written.
+    /// Returns number of bytes written.
     pub const fn len(&self) -> usize {
         self.cursor as usize
     }
 
     #[inline(always)]
-    ///Sets new length of the string.
+    /// Sets new length of the string.
     pub unsafe fn set_len(&mut self, len: u8) {
         self.cursor = len
     }
 
     #[inline]
-    ///Appends given string without any size checks
+    /// Appends given string without any size checks
     pub unsafe fn push_str_unchecked(&mut self, text: &str) {
         ptr::copy_nonoverlapping(
             text.as_ptr(),
@@ -222,7 +223,7 @@ impl<const N: usize> StrBuf<N> {
     }
 
     #[inline]
-    ///Appends given string, truncating on overflow, returning number of written bytes
+    /// Appends given string, truncating on overflow, returning number of written bytes
     pub fn push_str(&mut self, text: &str) -> usize {
         let size = cmp::min(text.len(), self.remaining());
         unsafe {
@@ -232,17 +233,17 @@ impl<const N: usize> StrBuf<N> {
     }
 
     #[inline]
-    ///Appends given string, assuming it fits.
+    /// Appends given string, assuming it fits.
     ///
-    ///On overflow panics with index out of bounds.
+    /// On overflow panics with index out of bounds.
     pub const fn and(self, text: &str) -> Self {
         unsafe { self.and_unsafe(text.as_bytes()) }
     }
 
     #[inline]
-    ///Unsafely appends given bytes, assuming valid utf-8.
+    /// Unsafely appends given bytes, assuming valid utf-8.
     ///
-    ///On overflow panics with index out of bounds as `and`.
+    /// On overflow panics with index out of bounds as `and`.
     pub const unsafe fn and_unsafe(mut self, bytes: &[u8]) -> Self {
         let mut idx = 0;
         while idx < bytes.len() {
@@ -255,9 +256,9 @@ impl<const N: usize> StrBuf<N> {
     }
 
     #[inline(always)]
-    ///Access str from underlying storage
+    /// Access str from underlying storage
     ///
-    ///Returns empty if nothing has been written into buffer yet.
+    /// Returns empty if nothing has been written into buffer yet.
     pub fn as_str(&self) -> &str {
         unsafe {
             let slice = core::slice::from_raw_parts(self.as_ptr(), self.len());
