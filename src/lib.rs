@@ -4,11 +4,10 @@
 //!
 //!- `serde` Enables serde serialization. In case of overflow, deserialize fails.
 #![warn(missing_docs)]
-
 #![no_std]
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::style))]
 
-use core::{mem, slice, ptr, cmp, ops, hash, fmt, borrow};
+use core::{borrow, cmp, fmt, hash, mem, ops, ptr, slice};
 
 #[cfg(feature = "serde")]
 mod serde;
@@ -113,9 +112,7 @@ impl<const N: usize> StrBuf<N> {
             idx += 1;
         }
 
-        unsafe {
-            Self::from_storage(storage, idx as u8)
-        }
+        unsafe { Self::from_storage(storage, idx as u8) }
     }
 
     #[inline]
@@ -149,17 +146,13 @@ impl<const N: usize> StrBuf<N> {
     #[inline]
     ///Returns slice to already written data.
     pub fn as_slice(&self) -> &[u8] {
-        unsafe {
-            slice::from_raw_parts(self.as_ptr(), self.cursor as usize)
-        }
+        unsafe { slice::from_raw_parts(self.as_ptr(), self.cursor as usize) }
     }
 
     #[inline]
     ///Returns mutable slice to already written data.
     pub fn as_mut_slice(&mut self) -> &mut [u8] {
-        unsafe {
-            slice::from_raw_parts_mut(self.as_ptr() as *mut u8, self.cursor as usize)
-        }
+        unsafe { slice::from_raw_parts_mut(self.as_ptr() as *mut u8, self.cursor as usize) }
     }
 
     #[inline]
@@ -220,7 +213,11 @@ impl<const N: usize> StrBuf<N> {
     #[inline]
     ///Appends given string without any size checks
     pub unsafe fn push_str_unchecked(&mut self, text: &str) {
-        ptr::copy_nonoverlapping(text.as_ptr(), self.as_ptr().offset(self.cursor as isize) as *mut u8, text.len());
+        ptr::copy_nonoverlapping(
+            text.as_ptr(),
+            self.as_ptr().offset(self.cursor as isize) as *mut u8,
+            text.len(),
+        );
         self.set_len(self.cursor.saturating_add(text.len() as u8));
     }
 
@@ -235,16 +232,16 @@ impl<const N: usize> StrBuf<N> {
     }
 
     #[inline]
-    ///Appends given string, assuming it fits.
-    ///
-    ///On overflow panics with index out of bounds.
-    pub const fn and(self, text: &str) -> Self {
-        unsafe {
-            self.and_unsafe(text.as_bytes())
+    /// Appends given string, assuming it fits.
+    pub const fn and(self, text: &str) -> Option<Self> {
+        if self.remaining() < text.len() {
+            Some(unsafe { self.and_unsafe(text.as_bytes()) })
+        } else {
+            None
         }
     }
 
-   #[inline]
+    #[inline]
     ///Unsafely appends given bytes, assuming valid utf-8.
     ///
     ///On overflow panics with index out of bounds as `and`.
@@ -307,9 +304,7 @@ impl<const S: usize> Clone for StrBuf<S> {
     #[inline]
     fn clone(&self) -> Self {
         let mut result = Self::new();
-        unsafe {
-            result.push_str_unchecked(self.as_str())
-        }
+        unsafe { result.push_str_unchecked(self.as_str()) }
         result
     }
 
@@ -367,7 +362,6 @@ impl<const S: usize> PartialEq<StrBuf<S>> for &str {
         *self == other.as_str()
     }
 }
-
 
 impl<const S: usize> PartialEq<StrBuf<S>> for str {
     #[inline(always)]
