@@ -12,5 +12,5 @@ fn should_correctly_truncate_by_char_boundary() {
     assert_eq!(buf, "ロr");
     assert_eq!(buf.push_str("i"), 1);
     assert_eq!(buf, "ロri");
-    assert_eq!(buf.push_str("."), 1);
+    assert_eq!(buf.push_str("."), 0);
 }
