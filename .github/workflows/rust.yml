@@ -39,5 +39,8 @@ jobs:
         cargo --version
         rustc --version
 
+    - name: Lints
+      run: cargo clippy --features serde
+
     - name: Test
       run: cargo test --features serde
