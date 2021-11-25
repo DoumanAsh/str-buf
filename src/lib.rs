@@ -5,7 +5,6 @@
 //!- `serde` Enables serde serialization. In case of overflow, deserialize fails.
 #![warn(missing_docs)]
 
-#![no_std]
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::style))]
 #![cfg_attr(rustfmt, rustfmt_skip)]
 
@@ -228,7 +227,21 @@ impl<const N: usize> StrBuf<N> {
     #[inline]
     ///Appends given string, truncating on overflow, returning number of written bytes
     pub fn push_str(&mut self, text: &str) -> usize {
-        let size = cmp::min(text.len(), self.remaining());
+        let mut size = cmp::min(text.len(), self.remaining());
+
+        #[cold]
+        fn shift_by_char_boundary(text: &str, mut size: usize) -> usize {
+            while !text.is_char_boundary(size) {
+                size -= 1;
+            }
+            size
+        }
+
+        if !text.is_char_boundary(size) {
+            //0 is always char boundary so 0 - 1 is impossible
+            size = shift_by_char_boundary(text, size - 1);
+        }
+
         unsafe {
             self.push_str_unchecked(&text[..size]);
         }
