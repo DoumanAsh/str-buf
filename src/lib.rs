@@ -4,11 +4,10 @@
 //!
 //!- `serde` Enables serde serialization. In case of overflow, deserialize fails.
 #![warn(missing_docs)]
-
 #![no_std]
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::style))]
 
-use core::{mem, slice, ptr, cmp, ops, hash, fmt, borrow};
+use core::{borrow, cmp, convert::TryFrom, fmt, hash, mem, ops, ptr, slice};
 
 #[cfg(feature = "serde")]
 mod serde;
@@ -29,52 +28,52 @@ impl fmt::Display for StrBufError {
     }
 }
 
-///Stack based string.
+/// Stack based string.
 ///
-///It's size is `mem::size_of::<T>() + mem::size_of::<u8>()`, but remember that it can be padded.
-///Can store up to `u8::max_value()` as anything bigger makes a little sense.
+/// It's size is `mem::size_of::<T>() + mem::size_of::<u8>()`, but remember that it can be padded.
+/// Can store up to `u8::max_value()` as anything bigger makes a little sense.
 ///
-///Storage is always capped at `u8::max_value()`, once panic are allowed inside `const fn`,
-///creating buffer with invalid storage will panic.
+/// Storage is always capped at `u8::max_value()`, once panic are allowed inside `const fn`,
+/// creating buffer with invalid storage will panic.
 ///
-///When attempting to create new instance from `&str` it panics on overflow in debug mode.
+/// When attempting to create new instance from `&str` it panics on overflow in debug mode.
 ///
-///```
-///use str_buf::StrBuf;
-///use core::mem;
-///use core::fmt::Write;
-///use core::convert::TryInto;
+/// ```
+/// use str_buf::StrBuf;
+/// use core::mem;
+/// use core::fmt::Write;
+/// use core::convert::TryInto;
 ///
-///type MyStr = StrBuf::<{mem::size_of::<String>()}>;
+/// type MyStr = StrBuf::<{mem::size_of::<String>()}>;
 ///
-///const CONST_STR: MyStr = MyStr::new().and("hello").and(" ").and("world");
+/// const CONST_STR: MyStr = MyStr::new().and("hello").and(" ").and("world");
 ///
-///assert_eq!(CONST_STR, "hello world");
+/// assert_eq!(CONST_STR, "hello world");
 ///
-///assert_eq!(MyStr::capacity(), mem::size_of::<String>());
-/////If you want it to be equal to string you'll have to adjust storage accordingly
-///assert_ne!(mem::size_of::<MyStr>(), mem::size_of::<String>());
-///assert_eq!(mem::size_of::<StrBuf::<{mem::size_of::<String>() - 1}>>(), mem::size_of::<String>());
+/// assert_eq!(MyStr::capacity(), mem::size_of::<String>());
+/// //If you want it to be equal to string you'll have to adjust storage accordingly
+/// assert_ne!(mem::size_of::<MyStr>(), mem::size_of::<String>());
+/// assert_eq!(mem::size_of::<StrBuf::<{mem::size_of::<String>() - 1}>>(), mem::size_of::<String>());
 ///
-///let text: MyStr = "test".try_into().expect("To fit string");
-///assert_eq!("test", text);
-///assert_eq!(text, "test");
-///let mut text = MyStr::new();
-///let _ = write!(text, "test {}", "hello world");
-///assert_eq!(text.as_str(), "test hello world");
-///assert_eq!(text.remaining(), MyStr::capacity() - "test hello world".len());
+/// let text: MyStr = "test".try_into().expect("To fit string");
+/// assert_eq!("test", text);
+/// assert_eq!(text, "test");
+/// let mut text = MyStr::new();
+/// let _ = write!(text, "test {}", "hello world");
+/// assert_eq!(text.as_str(), "test hello world");
+/// assert_eq!(text.remaining(), MyStr::capacity() - "test hello world".len());
 ///
-///assert_eq!(text.push_str(" or maybe not"), 8); //Overflow!
-///assert_eq!(text.as_str(), "test hello world or mayb");
-///assert_eq!(text.push_str(" or maybe not"), 0); //Overflow, damn
+/// assert_eq!(text.push_str(" or maybe not"), 8); //Overflow!
+/// assert_eq!(text.as_str(), "test hello world or mayb");
+/// assert_eq!(text.push_str(" or maybe not"), 0); //Overflow, damn
 ///
-///text.clear();
-///assert_eq!(text.push_str(" or maybe not"), 13); //noice
-///assert_eq!(text.as_str(), " or maybe not");
+/// text.clear();
+/// assert_eq!(text.push_str(" or maybe not"), 13); //noice
+/// assert_eq!(text.as_str(), " or maybe not");
 ///
-///assert_eq!(text.clone().as_str(), text.as_str());
-///assert_eq!(text.clone(), text);
-///```
+/// assert_eq!(text.clone().as_str(), text.as_str());
+/// assert_eq!(text.clone(), text);
+/// ```
 pub struct StrBuf<const N: usize> {
     inner: [mem::MaybeUninit<u8>; N],
     cursor: u8, //number of bytes written
@@ -113,9 +112,7 @@ impl<const N: usize> StrBuf<N> {
             idx += 1;
         }
 
-        unsafe {
-            Self::from_storage(storage, idx as u8)
-        }
+        unsafe { Self::from_storage(storage, idx as u8) }
     }
 
     #[inline]
@@ -149,17 +146,13 @@ impl<const N: usize> StrBuf<N> {
     #[inline]
     ///Returns slice to already written data.
     pub fn as_slice(&self) -> &[u8] {
-        unsafe {
-            slice::from_raw_parts(self.as_ptr(), self.cursor as usize)
-        }
+        unsafe { slice::from_raw_parts(self.as_ptr(), self.cursor as usize) }
     }
 
     #[inline]
     ///Returns mutable slice to already written data.
     pub fn as_mut_slice(&mut self) -> &mut [u8] {
-        unsafe {
-            slice::from_raw_parts_mut(self.as_ptr() as *mut u8, self.cursor as usize)
-        }
+        unsafe { slice::from_raw_parts_mut(self.as_ptr() as *mut u8, self.cursor as usize) }
     }
 
     #[inline]
@@ -220,7 +213,11 @@ impl<const N: usize> StrBuf<N> {
     #[inline]
     ///Appends given string without any size checks
     pub unsafe fn push_str_unchecked(&mut self, text: &str) {
-        ptr::copy_nonoverlapping(text.as_ptr(), self.as_ptr().offset(self.cursor as isize) as *mut u8, text.len());
+        ptr::copy_nonoverlapping(
+            text.as_ptr(),
+            self.as_ptr().offset(self.cursor as isize) as *mut u8,
+            text.len(),
+        );
         self.set_len(self.cursor.saturating_add(text.len() as u8));
     }
 
@@ -239,12 +236,10 @@ impl<const N: usize> StrBuf<N> {
     ///
     ///On overflow panics with index out of bounds.
     pub const fn and(self, text: &str) -> Self {
-        unsafe {
-            self.and_unsafe(text.as_bytes())
-        }
+        unsafe { self.and_unsafe(text.as_bytes()) }
     }
 
-   #[inline]
+    #[inline]
     ///Unsafely appends given bytes, assuming valid utf-8.
     ///
     ///On overflow panics with index out of bounds as `and`.
@@ -307,9 +302,7 @@ impl<const S: usize> Clone for StrBuf<S> {
     #[inline]
     fn clone(&self) -> Self {
         let mut result = Self::new();
-        unsafe {
-            result.push_str_unchecked(self.as_str())
-        }
+        unsafe { result.push_str_unchecked(self.as_str()) }
         result
     }
 
@@ -368,7 +361,6 @@ impl<const S: usize> PartialEq<StrBuf<S>> for &str {
     }
 }
 
-
 impl<const S: usize> PartialEq<StrBuf<S>> for str {
     #[inline(always)]
     fn eq(&self, other: &StrBuf<S>) -> bool {
@@ -408,7 +400,7 @@ impl<const S: usize> hash::Hash for StrBuf<S> {
     }
 }
 
-impl<const S: usize> core::convert::TryFrom<&str> for StrBuf<S> {
+impl<const S: usize> TryFrom<&str> for StrBuf<S> {
     type Error = StrBufError;
 
     #[inline(always)]

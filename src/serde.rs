@@ -29,7 +29,10 @@ impl<'de, const S: usize> serde::de::Visitor<'de> for StrBufVisitor<S> {
             }
             Ok(result)
         } else {
-            Err(serde::de::Error::custom(format_args!("Exceeds buffer capacity({} bytes)", Self::Value::capacity())))
+            Err(serde::de::Error::custom(format_args!(
+                "Exceeds buffer capacity({} bytes)",
+                Self::Value::capacity()
+            )))
         }
     }
 }
@@ -45,8 +48,8 @@ impl<'a, const S: usize> Deserialize<'a> for StrBuf<S> {
 mod tests {
     use crate::StrBuf;
 
-    use serde::de::Deserialize;
     use serde::de::value::{BorrowedStrDeserializer, Error as ValueError};
+    use serde::de::Deserialize;
 
     #[test]
     fn should_error_one_exceeding_capacity() {
