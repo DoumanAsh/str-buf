@@ -5,3 +5,7 @@
 [![Documentation](https://docs.rs/str-buf/badge.svg)](https://docs.rs/crate/str-buf/)
 
 Static string buffer
+
+## Requirements
+
+- Rust 1.57

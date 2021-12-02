@@ -7,6 +7,12 @@ type MaxCapStr = StrBuf<{u8::max_value() as usize}>;
 
 #[test]
 #[should_panic]
+fn overflow_on_invalid_capacity() {
+    let _ = StrBuf::<500>::new();
+}
+
+#[test]
+#[should_panic]
 fn from_str_overflow_panic() {
     let _ = ZeroStr::from_str("lolka");
 }

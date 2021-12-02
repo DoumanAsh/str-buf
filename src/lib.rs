@@ -85,9 +85,8 @@ impl<const N: usize> StrBuf<N> {
     #[inline]
     ///Creates new instance
     pub const fn new() -> Self {
-        Self {
-            inner: [mem::MaybeUninit::uninit(); N],
-            cursor: 0,
+        unsafe {
+            Self::from_storage([mem::MaybeUninit::uninit(); N], 0)
         }
     }
 
@@ -97,6 +96,8 @@ impl<const N: usize> StrBuf<N> {
     ///It is unsafe, because there is no guarantee that storage is correctly initialized with UTF-8
     ///bytes.
     pub const unsafe fn from_storage(storage: [mem::MaybeUninit<u8>; N], cursor: u8) -> Self {
+        debug_assert!(N <= u8::max_value() as usize, "Capacity cannot be more than 255");
+
         Self {
             inner: storage,
             cursor,
@@ -106,9 +107,10 @@ impl<const N: usize> StrBuf<N> {
     #[inline]
     ///Creates new instance from existing slice with panic on overflow
     pub const fn from_str(text: &str) -> Self {
+        let mut idx = 0;
         let mut storage = [mem::MaybeUninit::<u8>::uninit(); N];
 
-        let mut idx = 0;
+        debug_assert!(text.len() <= storage.len(), "Text cannot fit static storage");
         while idx < text.len() {
             storage[idx] = mem::MaybeUninit::new(text.as_bytes()[idx]);
             idx += 1;
