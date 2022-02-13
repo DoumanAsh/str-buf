@@ -159,10 +159,8 @@ impl<const N: usize> StrBuf<N> {
 
     #[inline]
     ///Returns mutable slice to already written data.
-    pub fn as_mut_slice(&mut self) -> &mut [u8] {
-        unsafe {
-            slice::from_raw_parts_mut(self.as_ptr() as *mut u8, self.cursor as usize)
-        }
+    pub unsafe fn as_mut_slice(&mut self) -> &mut [u8] {
+        slice::from_raw_parts_mut(self.as_ptr() as *mut u8, self.cursor as usize)
     }
 
     #[inline]
@@ -175,7 +173,7 @@ impl<const N: usize> StrBuf<N> {
     ///Clears the content of buffer.
     pub fn clear(&mut self) {
         unsafe {
-            self.truncate(0);
+            self.set_len(0);
         }
     }
 
@@ -266,12 +264,15 @@ impl<const N: usize> StrBuf<N> {
     ///
     ///On overflow panics with index out of bounds as `and`.
     pub const unsafe fn and_unsafe(mut self, bytes: &[u8]) -> Self {
+        debug_assert!(self.remaining() >= bytes.len(), "Buffer overflow");
+
         let mut idx = 0;
         while idx < bytes.len() {
-            self.inner[self.cursor as usize] = mem::MaybeUninit::new(bytes[idx]);
-            self.cursor = self.cursor.saturating_add(1);
+            let cursor = self.cursor as usize + idx;
+            self.inner[cursor] = mem::MaybeUninit::new(bytes[idx]);
             idx += 1;
         }
+        self.cursor = self.cursor.saturating_add(bytes.len() as u8);
 
         self
     }
@@ -343,13 +344,6 @@ impl<const S: usize> AsRef<[u8]> for StrBuf<S> {
     #[inline(always)]
     fn as_ref(&self) -> &[u8] {
         self.as_slice()
-    }
-}
-
-impl<const S: usize> AsMut<[u8]> for StrBuf<S> {
-    #[inline(always)]
-    fn as_mut(&mut self) -> &mut [u8] {
-        self.as_mut_slice()
     }
 }
 
