@@ -131,6 +131,24 @@ impl<const N: usize> StrBuf<N> {
         }
     }
 
+    #[inline(always)]
+    ///Reads byte at `idx`.
+    pub const unsafe fn get_unchecked(&self, idx: usize) -> u8 {
+        self.inner[idx].assume_init()
+    }
+
+    #[inline]
+    ///Reads byte at `idx`.
+    pub const fn get(&self, idx: usize) -> Option<u8> {
+        if idx < self.cursor as usize {
+            unsafe {
+                Some(self.get_unchecked(idx))
+            }
+        } else {
+            None
+        }
+    }
+
     #[inline]
     ///Returns pointer  to the beginning of underlying buffer
     pub const fn as_ptr(&self) -> *const u8 {
