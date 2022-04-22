@@ -150,6 +150,20 @@ impl<const N: usize> StrBuf<N> {
     }
 
     #[inline]
+    ///Returns reference to underlying storage as it is.
+    pub const fn as_storage(&self) -> &[mem::MaybeUninit<u8>; N] {
+        &self.inner
+    }
+
+    #[inline]
+    ///Returns reference to underlying storage as it is.
+    ///
+    ///To safely modify the storage, user must guarantee to write valid UTF-8
+    pub unsafe fn as_mut_storage(&mut self) -> &mut [mem::MaybeUninit<u8>; N] {
+        &mut self.inner
+    }
+
+    #[inline]
     ///Returns slice to already written data.
     pub fn as_slice(&self) -> &[u8] {
         unsafe {
@@ -159,6 +173,8 @@ impl<const N: usize> StrBuf<N> {
 
     #[inline]
     ///Returns mutable slice to already written data.
+    ///
+    ///To safely modify the slice, user must guarantee to write valid UTF-8
     pub unsafe fn as_mut_slice(&mut self) -> &mut [u8] {
         slice::from_raw_parts_mut(self.as_ptr() as *mut u8, self.cursor as usize)
     }
