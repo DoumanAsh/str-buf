@@ -33,10 +33,10 @@ impl fmt::Display for StrBufError {
 ///Stack based string.
 ///
 ///It's size is `mem::size_of::<T>() + mem::size_of::<u8>()`, but remember that it can be padded.
-///Can store up to `u8::max_value()` as anything bigger makes a little sense.
+///Can store up to `u8::max_value()` as anything bigger makes it impractical.
 ///
-///Storage is always capped at `u8::max_value()`, once panic are allowed inside `const fn`,
-///creating buffer with invalid storage will panic.
+///Storage is always capped at `u8::max_value()`, which practically means panic during creation,
+///until compiler provides a better means to error.
 ///
 ///When attempting to create new instance from `&str` it panics on overflow in debug mode.
 ///
@@ -374,6 +374,8 @@ impl<const S: usize> Clone for StrBuf<S> {
     }
 }
 
+impl<const S: usize> Copy for StrBuf<S> {}
+
 impl<const S: usize> AsRef<[u8]> for StrBuf<S> {
     #[inline(always)]
     fn as_ref(&self) -> &[u8] {
@@ -412,7 +414,6 @@ impl<const S: usize> PartialEq<StrBuf<S>> for &str {
         *self == other.as_str()
     }
 }
-
 
 impl<const S: usize> PartialEq<StrBuf<S>> for str {
     #[inline(always)]
