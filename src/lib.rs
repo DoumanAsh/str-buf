@@ -183,9 +183,26 @@ impl<const N: usize> StrBuf<N> {
 
     #[inline]
     ///Returns slice to already written data.
-    pub fn as_slice(&self) -> &[u8] {
+    pub const fn as_slice(&self) -> &[u8] {
+        //Layout is: (<ptr>, <usize>)
+        //
+        //Reference:
+        //https://github.com/rust-lang/rust/blob/6830052c7b87217886324129bffbe096e485d415/library/core/src/ptr/metadata.rs#L145=
+        #[repr(C)]
+        struct RawSlice {
+            ptr: *const u8,
+            size: usize,
+        }
+
+        debug_assert!(unsafe {
+            core::mem::transmute::<_, RawSlice>([3, 2, 1].as_slice()).size
+        } == 3, "RawSlice layout has been changed in compiler unexpectedly");
+
         unsafe {
-            slice::from_raw_parts(self.as_ptr(), self.cursor as usize)
+            mem::transmute(RawSlice {
+                ptr: self.as_ptr(),
+                size: self.cursor as usize
+            })
         }
     }
 
@@ -315,10 +332,12 @@ impl<const N: usize> StrBuf<N> {
     ///Access str from underlying storage
     ///
     ///Returns empty if nothing has been written into buffer yet.
-    pub fn as_str(&self) -> &str {
+    pub const fn as_str(&self) -> &str {
+        //You think I care?
+        //Make `from_utf8_unchecked` const fn first
+        #[allow(clippy::transmute_bytes_to_str)]
         unsafe {
-            let slice = core::slice::from_raw_parts(self.as_ptr(), self.len());
-            core::str::from_utf8_unchecked(slice)
+            core::mem::transmute(self.as_slice())
         }
     }
 }
