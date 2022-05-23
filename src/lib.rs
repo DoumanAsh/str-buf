@@ -152,7 +152,7 @@ impl<const N: usize> StrBuf<N> {
     #[inline]
     ///Returns pointer  to the beginning of underlying buffer
     pub const fn as_ptr(&self) -> *const u8 {
-        &self.inner as *const _ as *const u8
+        self.inner.as_ptr() as _
     }
 
     #[inline]
@@ -201,7 +201,7 @@ impl<const N: usize> StrBuf<N> {
         unsafe {
             mem::transmute(RawSlice {
                 ptr: self.as_ptr(),
-                size: self.cursor as usize
+                size: self.len(),
             })
         }
     }
