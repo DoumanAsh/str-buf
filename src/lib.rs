@@ -195,7 +195,7 @@ impl<const N: usize> StrBuf<N> {
         }
 
         debug_assert!(unsafe {
-            core::mem::transmute::<_, RawSlice>([3, 2, 1].as_slice()).size
+            mem::transmute::<_, RawSlice>([3, 2, 1].as_slice()).size
         } == 3, "RawSlice layout has been changed in compiler unexpectedly");
 
         unsafe {
@@ -335,9 +335,8 @@ impl<const N: usize> StrBuf<N> {
     pub const fn as_str(&self) -> &str {
         //You think I care?
         //Make `from_utf8_unchecked` const fn first
-        #[allow(clippy::transmute_bytes_to_str)]
         unsafe {
-            core::mem::transmute(self.as_slice())
+            core::str::from_utf8_unchecked(self.as_slice())
         }
     }
 }
