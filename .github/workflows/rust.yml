@@ -44,3 +44,17 @@ jobs:
 
     - name: Test
       run: cargo test --features serde
+
+  run-miri:
+    name: Run Miri
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: hecrj/setup-rust-action@v1
+        with:
+          rust-version: nightly
+          components: miri
+
+      - run: cargo miri test
+        env:
+          MIRIFLAGS: "-Zmiri-strict-provenance"
