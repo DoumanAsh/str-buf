@@ -96,6 +96,12 @@ impl<S: Sized> StrBuf<S> {
     }
 
     #[inline]
+    ///Returns mutable pointer to the beginning of underlying buffer
+    pub fn as_mut_ptr(&mut self) -> *mut u8 {
+        &mut self.inner as *mut _ as *mut u8
+    }
+
+    #[inline]
     ///Returns number of bytes left (not written yet)
     pub const fn remaining(&self) -> usize {
         Self::capacity() - self.cursor as usize
@@ -113,7 +119,7 @@ impl<S: Sized> StrBuf<S> {
     ///Returns mutable slice to already written data.
     pub fn as_mut_slice(&mut self) -> &mut [u8] {
         unsafe {
-            slice::from_raw_parts_mut(self.as_ptr() as *mut u8, self.cursor as usize)
+            slice::from_raw_parts_mut(self.as_mut_ptr(), self.cursor as usize)
         }
     }
 
@@ -158,7 +164,7 @@ impl<S: Sized> StrBuf<S> {
     #[inline]
     ///Appends given string without any size checks
     pub unsafe fn push_str_unchecked(&mut self, text: &str) {
-        ptr::copy_nonoverlapping(text.as_ptr(), self.as_ptr().offset(self.cursor as isize) as *mut u8, text.len());
+        ptr::copy_nonoverlapping(text.as_ptr(), self.as_mut_ptr().offset(self.cursor as isize), text.len());
         self.set_len(self.cursor.saturating_add(text.len() as u8));
     }
 
