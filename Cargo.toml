@@ -1,6 +1,6 @@
 [package]
 name = "str-buf"
-version = "3.0.1"
+version = "3.0.2"
 authors = ["Douman <douman@gmx.se>"]
 edition = "2018"
 description = "Static string buffer"
@@ -17,5 +17,10 @@ include = [
 
 [dependencies.serde]
 version = "1"
+optional = true
+default-features = false
+
+[dependencies.ufmt-write]
+version = "0.1"
 optional = true
 default-features = false

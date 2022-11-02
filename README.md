@@ -9,3 +9,8 @@ Static string buffer
 ## Requirements
 
 - Rust 1.59
+
+## Features:
+
+- `serde` Enables serde serialization. In case of overflow, deserialize fails.
+- `ufmt-write` Enables ufmt `uWrite` implementation.

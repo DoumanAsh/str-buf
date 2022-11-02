@@ -43,10 +43,10 @@ jobs:
         rustc --version
 
     - name: Lints
-      run: cargo clippy --features serde
+      run: cargo clippy --features serde,ufmt-write
 
     - name: Test
-      run: cargo test --features serde
+      run: cargo test --features serde,ufmt-write
 
   run-miri:
     name: Run Miri

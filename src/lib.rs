@@ -3,6 +3,7 @@
 //!Features:
 //!
 //!- `serde` Enables serde serialization. In case of overflow, deserialize fails.
+//!- `ufmt-write` Enables ufmt `uWrite` implementation.
 #![warn(missing_docs)]
 
 #![no_std]
@@ -13,6 +14,8 @@ use core::{mem, slice, ptr, cmp, ops, hash, fmt, borrow};
 
 #[cfg(feature = "serde")]
 mod serde;
+#[cfg(feature = "ufmt-write")]
+mod ufmt;
 
 #[derive(Debug, Clone)]
 ///`StrBuf` conversion error
