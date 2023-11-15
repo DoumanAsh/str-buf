@@ -33,6 +33,7 @@ impl fmt::Display for StrBufError {
     }
 }
 
+#[derive(Copy, Clone)]
 ///Stack based string.
 ///
 ///It's size is `mem::size_of::<T>() + mem::size_of::<u8>()`, but remember that it can be padded.
@@ -376,27 +377,6 @@ impl<const S: usize> core::fmt::Debug for StrBuf<S> {
     }
 }
 
-impl<const S: usize> Clone for StrBuf<S> {
-    #[inline]
-    fn clone(&self) -> Self {
-        let mut result = Self::new();
-        unsafe {
-            result.push_str_unchecked(self.as_str())
-        }
-        result
-    }
-
-    #[inline]
-    fn clone_from(&mut self, source: &Self) {
-        self.clear();
-        unsafe {
-            self.push_str_unchecked(source.as_str());
-        }
-    }
-}
-
-impl<const S: usize> Copy for StrBuf<S> {}
-
 impl<const S: usize> AsRef<[u8]> for StrBuf<S> {
     #[inline(always)]
     fn as_ref(&self) -> &[u8] {
@@ -480,6 +460,15 @@ impl<const S: usize> core::convert::TryFrom<&str> for StrBuf<S> {
 
     #[inline(always)]
     fn try_from(text: &str) -> Result<Self, Self::Error> {
+        Self::from_str_checked(text)
+    }
+}
+
+impl<const S: usize> core::str::FromStr for StrBuf<S> {
+    type Err = StrBufError;
+
+    #[inline(always)]
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
         Self::from_str_checked(text)
     }
 }
