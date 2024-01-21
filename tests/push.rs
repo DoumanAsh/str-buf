@@ -3,6 +3,16 @@ use str_buf::StrBuf;
 type SmolStr = StrBuf<5>;
 
 #[test]
+fn should_correctly_convert_ascii_case() {
+    let mut buf = SmolStr::new();
+    assert_eq!(buf.push_str("ロri"), "ロri".len());
+    buf.make_ascii_uppercase();
+    assert_eq!(buf, "ロRI");
+    buf.make_ascii_lowercase();
+    assert_eq!(buf, "ロri");
+}
+
+#[test]
 fn should_correctly_truncate_by_char_boundary() {
     let mut buf = SmolStr::new();
     assert_eq!(buf.push_str("ロリ"), 3);

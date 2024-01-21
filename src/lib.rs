@@ -343,6 +343,22 @@ impl<const N: usize> StrBuf<N> {
             core::str::from_utf8_unchecked(self.as_slice())
         }
     }
+
+    #[inline(always)]
+    ///Converts this string to its ASCII lower case equivalent in-place.
+    pub fn make_ascii_lowercase(&mut self) {
+        unsafe {
+            self.as_mut_slice().make_ascii_lowercase()
+        }
+    }
+
+    #[inline(always)]
+    ///Converts this string to its ASCII upper case equivalent in-place.
+    pub fn make_ascii_uppercase(&mut self) {
+        unsafe {
+            self.as_mut_slice().make_ascii_uppercase()
+        }
+    }
 }
 
 impl<const S: usize> AsRef<str> for StrBuf<S> {
