@@ -6,10 +6,16 @@ type SmolStr = StrBuf<5>;
 fn should_correctly_convert_ascii_case() {
     let mut buf = SmolStr::new();
     assert_eq!(buf.push_str("ロri"), "ロri".len());
+
+    let buf_copy = buf.clone().into_ascii_uppercase();
     buf.make_ascii_uppercase();
     assert_eq!(buf, "ロRI");
+    assert_eq!(buf_copy, "ロRI");
+
+    let buf_copy = buf.clone().into_ascii_lowercase();
     buf.make_ascii_lowercase();
     assert_eq!(buf, "ロri");
+    assert_eq!(buf_copy, "ロri");
 }
 
 #[test]

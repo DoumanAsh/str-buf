@@ -186,6 +186,7 @@ impl<const N: usize> StrBuf<N> {
     }
 
     #[inline]
+    #[allow(clippy::missing_transmute_annotations)]
     ///Returns slice to already written data.
     pub const fn as_slice(&self) -> &[u8] {
         //Layout is: (<ptr>, <usize>)
@@ -345,11 +346,48 @@ impl<const N: usize> StrBuf<N> {
     }
 
     #[inline(always)]
+    ///Modifies this string to convert all its characters into ASCII lower case equivalent
+    pub const fn into_ascii_lowercase(mut self) -> Self {
+        let len = self.len();
+        let mut idx = 0;
+        loop {
+            if idx >= len {
+                break;
+            }
+
+            self.inner[idx] = unsafe {
+                mem::MaybeUninit::new(self.inner[idx].assume_init().to_ascii_lowercase())
+            };
+            idx = idx.saturating_add(1);
+        }
+        self
+    }
+
+    #[inline(always)]
     ///Converts this string to its ASCII lower case equivalent in-place.
     pub fn make_ascii_lowercase(&mut self) {
         unsafe {
             self.as_mut_slice().make_ascii_lowercase()
         }
+    }
+
+
+    #[inline(always)]
+    ///Modifies this string to convert all its characters into ASCII upper case equivalent
+    pub const fn into_ascii_uppercase(mut self) -> Self {
+        let len = self.len();
+        let mut idx = 0;
+        loop {
+            if idx >= len {
+                break;
+            }
+
+            self.inner[idx] = unsafe {
+                mem::MaybeUninit::new(self.inner[idx].assume_init().to_ascii_uppercase())
+            };
+            idx = idx.saturating_add(1);
+        }
+        self
     }
 
     #[inline(always)]
