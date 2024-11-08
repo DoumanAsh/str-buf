@@ -8,7 +8,7 @@ Static string buffer
 
 ## Requirements
 
-- Rust 1.59
+- Rust 1.64
 
 ## Features:
 

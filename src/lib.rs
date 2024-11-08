@@ -189,25 +189,8 @@ impl<const N: usize> StrBuf<N> {
     #[allow(clippy::missing_transmute_annotations)]
     ///Returns slice to already written data.
     pub const fn as_slice(&self) -> &[u8] {
-        //Layout is: (<ptr>, <usize>)
-        //
-        //Reference:
-        //https://github.com/rust-lang/rust/blob/6830052c7b87217886324129bffbe096e485d415/library/core/src/ptr/metadata.rs#L145=
-        #[repr(C)]
-        struct RawSlice {
-            ptr: *const u8,
-            size: usize,
-        }
-
-        debug_assert!(unsafe {
-            mem::transmute::<_, RawSlice>([3, 2, 1].as_slice()).size
-        } == 3, "RawSlice layout has been changed in compiler unexpectedly");
-
         unsafe {
-            mem::transmute(RawSlice {
-                ptr: self.as_ptr(),
-                size: self.len(),
-            })
+            slice::from_raw_parts(self.as_ptr(), self.len())
         }
     }
 
