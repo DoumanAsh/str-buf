@@ -268,7 +268,6 @@ impl<const N: usize> StrBuf<N> {
     ///Returns buffer overall capacity.
     pub const fn capacity() -> usize {
         Self::CAPACITY
-
     }
 
     #[inline]
@@ -429,7 +428,6 @@ impl<const N: usize> StrBuf<N> {
             self.as_mut_slice().make_ascii_lowercase()
         }
     }
-
 
     #[inline(always)]
     ///Modifies this string to convert all its characters into ASCII upper case equivalent
