@@ -7,7 +7,7 @@
 #![warn(missing_docs)]
 
 #![no_std]
-#![cfg_attr(feature = "cargo-clippy", allow(clippy::style))]
+#![allow(clippy::style)]
 #![cfg_attr(rustfmt, rustfmt_skip)]
 
 use core::{mem, slice, ptr, cmp, ops, hash, fmt, borrow};
@@ -33,16 +33,38 @@ impl fmt::Display for StrBufError {
     }
 }
 
+///Max capacity to use length of size 1 byte
+pub const CAPACITY_U8: usize = 256;
+///Max capacity to use length of size 2 byte
+pub const CAPACITY_U16: usize = 65537;
+
+///Calculates necessary buffer capacity to fit provided number of bytes
+pub const fn capacity(desired: usize) -> usize {
+    if desired == 0 {
+        desired
+    } else if desired <= u8::MAX as usize {
+        desired.saturating_add(1)
+    } else if desired <= u16::MAX as usize {
+        desired.saturating_add(2)
+    } else {
+        desired.saturating_add(mem::size_of::<usize>())
+    }
+}
+
+#[repr(transparent)]
 #[derive(Copy, Clone)]
 ///Stack based string.
 ///
-///It's size is `mem::size_of::<T>() + mem::size_of::<u8>()`, but remember that it can be padded.
-///Can store up to `u8::max_value()` as anything bigger makes it impractical.
+///It's size is `mem::size_of::<[u8; T]>()` including bytes for length of the string
 ///
-///Storage is always capped at `u8::max_value()`, which practically means panic during creation,
-///until compiler provides a better means to error.
+///Depending on size of string, it uses different length size:
+///- `0` - Uses 0 bytes to store length
+///- `1..=256` - Uses 1 byte to store length
+///- `257..=65537` - Uses 2 bytes to store length
+///- `65537..` - Uses `mem::size_of::<usize>()` bytes to store length
 ///
-///When attempting to create new instance from `&str` it panics on overflow in debug mode.
+///In case of capacity overflow there is no re-adjustment possible
+///Therefore When attempting to create new instance from `&str` it panics on overflow.
 ///
 ///```
 ///use str_buf::StrBuf;
@@ -50,16 +72,14 @@ impl fmt::Display for StrBufError {
 ///use core::fmt::Write;
 ///use core::convert::TryInto;
 ///
-///type MyStr = StrBuf::<{mem::size_of::<String>()}>;
+///type MyStr = StrBuf::<{str_buf::capacity(mem::size_of::<String>())}>;
 ///
 ///const CONST_STR: MyStr = MyStr::new().and("hello").and(" ").and("world");
 ///
+///assert_eq!(CONST_STR.len(), "hello world".len());
 ///assert_eq!(CONST_STR, "hello world");
 ///
 ///assert_eq!(MyStr::capacity(), mem::size_of::<String>());
-/////If you want it to be equal to string you'll have to adjust storage accordingly
-///assert_ne!(mem::size_of::<MyStr>(), mem::size_of::<String>());
-///assert_eq!(mem::size_of::<StrBuf::<{mem::size_of::<String>() - 1}>>(), mem::size_of::<String>());
 ///
 ///let text: MyStr = "test".try_into().expect("To fit string");
 ///assert_eq!("test", text);
@@ -82,15 +102,24 @@ impl fmt::Display for StrBufError {
 ///```
 pub struct StrBuf<const N: usize> {
     inner: [mem::MaybeUninit<u8>; N],
-    cursor: u8, //number of bytes written
 }
 
 impl<const N: usize> StrBuf<N> {
+    const CAPACITY: usize = if N == 0 {
+        N
+    } else if N <= CAPACITY_U8 {
+        N - 1
+    } else if N <= CAPACITY_U16 {
+        N - 2
+    } else {
+        N - mem::size_of::<usize>()
+    };
+
     #[inline]
     ///Creates new instance
     pub const fn new() -> Self {
         unsafe {
-            Self::from_storage([mem::MaybeUninit::uninit(); N], 0)
+            Self::from_storage([mem::MaybeUninit::uninit(); N]).const_set_len(0)
         }
     }
 
@@ -99,12 +128,11 @@ impl<const N: usize> StrBuf<N> {
     ///
     ///It is unsafe, because there is no guarantee that storage is correctly initialized with UTF-8
     ///bytes.
-    pub const unsafe fn from_storage(storage: [mem::MaybeUninit<u8>; N], cursor: u8) -> Self {
-        debug_assert!(N <= u8::max_value() as usize, "Capacity cannot be more than 255");
+    pub const unsafe fn from_storage(storage: [mem::MaybeUninit<u8>; N]) -> Self {
+        debug_assert!(N <= usize::max_value(), "Capacity cannot exceed usize");
 
         Self {
             inner: storage,
-            cursor,
         }
     }
 
@@ -114,14 +142,14 @@ impl<const N: usize> StrBuf<N> {
         let mut idx = 0;
         let mut storage = [mem::MaybeUninit::<u8>::uninit(); N];
 
-        debug_assert!(text.len() <= storage.len(), "Text cannot fit static storage");
+        assert!(text.len() <= Self::CAPACITY, "Text cannot fit static storage");
         while idx < text.len() {
             storage[idx] = mem::MaybeUninit::new(text.as_bytes()[idx]);
             idx += 1;
         }
 
         unsafe {
-            Self::from_storage(storage, idx as u8)
+            Self::from_storage(storage).const_set_len(text.len())
         }
     }
 
@@ -144,7 +172,7 @@ impl<const N: usize> StrBuf<N> {
     #[inline]
     ///Reads byte at `idx`.
     pub const fn get(&self, idx: usize) -> Option<u8> {
-        if idx < self.cursor as usize {
+        if idx < self.len() {
             unsafe {
                 Some(self.get_unchecked(idx))
             }
@@ -168,7 +196,7 @@ impl<const N: usize> StrBuf<N> {
     #[inline]
     ///Returns number of bytes left (not written yet)
     pub const fn remaining(&self) -> usize {
-        Self::capacity() - self.cursor as usize
+        Self::capacity() - self.len()
     }
 
     #[inline]
@@ -186,7 +214,6 @@ impl<const N: usize> StrBuf<N> {
     }
 
     #[inline]
-    #[allow(clippy::missing_transmute_annotations)]
     ///Returns slice to already written data.
     pub const fn as_slice(&self) -> &[u8] {
         unsafe {
@@ -199,13 +226,14 @@ impl<const N: usize> StrBuf<N> {
     ///
     ///To safely modify the slice, user must guarantee to write valid UTF-8
     pub unsafe fn as_mut_slice(&mut self) -> &mut [u8] {
-        slice::from_raw_parts_mut(self.as_mut_ptr(), self.cursor as usize)
+        slice::from_raw_parts_mut(self.as_mut_ptr(), self.len())
     }
 
     #[inline]
     ///Returns mutable slice with unwritten parts of the buffer.
     pub fn as_write_slice(&mut self) -> &mut [mem::MaybeUninit<u8>] {
-        &mut self.inner[self.cursor as usize..]
+        let len = self.len();
+        &mut self.inner[len..]
     }
 
     #[inline(always)]
@@ -218,9 +246,10 @@ impl<const N: usize> StrBuf<N> {
 
     #[inline(always)]
     ///Returns empty self.
-    pub const fn empty(mut self) -> Self {
-        self.cursor = 0;
-        self
+    pub const fn empty(self) -> Self {
+        unsafe {
+            self.const_set_len(0)
+        }
     }
 
     #[inline]
@@ -229,39 +258,90 @@ impl<const N: usize> StrBuf<N> {
     ///Does nothing if new `cursor` is after current position.
     ///
     ///Unsafe as it is up to user to consider character boundary
-    pub unsafe fn truncate(&mut self, cursor: u8) {
-        if cursor < self.cursor {
-            self.set_len(cursor);
+    pub unsafe fn truncate(&mut self, len: usize) {
+        if len < self.len() {
+            self.set_len(len);
         }
     }
 
     #[inline]
     ///Returns buffer overall capacity.
     pub const fn capacity() -> usize {
-        if N > u8::max_value() as usize {
-            u8::max_value() as usize
-        } else {
-            N
-        }
+        Self::CAPACITY
+
     }
 
     #[inline]
     ///Returns number of bytes written.
     pub const fn len(&self) -> usize {
-        self.cursor as usize
+        if N == 0 {
+            0
+        } else if N <= CAPACITY_U8 {
+            unsafe {
+                self.inner[Self::CAPACITY].assume_init() as _
+            }
+        } else if N <= CAPACITY_U16 {
+            unsafe {
+                u16::from_ne_bytes([self.inner[Self::CAPACITY].assume_init(), self.inner[Self::CAPACITY + 1].assume_init()]) as _
+            }
+        } else {
+            unsafe {
+                usize::from_ne_bytes(*(self.inner.as_ptr().add(Self::CAPACITY) as *const [u8; mem::size_of::<usize>()]))
+            }
+        }
     }
 
     #[inline(always)]
     ///Sets new length of the string.
-    pub unsafe fn set_len(&mut self, len: u8) {
-        self.cursor = len
+    const unsafe fn const_set_len(mut self, len: usize) -> Self {
+        if N == 0 {
+            //no length
+        } else if N <= CAPACITY_U8 {
+            self.inner[Self::CAPACITY] = mem::MaybeUninit::new(len as _);
+        } else if N <= CAPACITY_U16 {
+            let len = (len as u16).to_ne_bytes();
+            self.inner[Self::CAPACITY] = mem::MaybeUninit::new(len[0]);
+            self.inner[Self::CAPACITY + 1] = mem::MaybeUninit::new(len[1]);
+        } else {
+            let len = len.to_ne_bytes();
+            let mut idx = 0;
+            loop {
+                self.inner[Self::CAPACITY + idx] = mem::MaybeUninit::new(len[idx]);
+                idx = idx.saturating_add(1);
+                if idx >= len.len() {
+                    break;
+                }
+            }
+        }
+
+        self
+    }
+
+    #[inline(always)]
+    ///Sets new length of the string.
+    pub unsafe fn set_len(&mut self, len: usize) {
+        if N == 0 {
+            //No length
+        } else if N <= CAPACITY_U8 {
+            self.inner[Self::CAPACITY] = mem::MaybeUninit::new(len as _);
+        } else if N <= CAPACITY_U16 {
+            let len = (len as u16).to_ne_bytes();
+            self.inner[Self::CAPACITY] = mem::MaybeUninit::new(len[0]);
+            self.inner[Self::CAPACITY + 1] = mem::MaybeUninit::new(len[1]);
+        } else {
+            let len = len.to_ne_bytes();
+            unsafe {
+                let ptr = self.inner.as_mut_ptr().add(Self::CAPACITY);
+                ptr::copy_nonoverlapping(len.as_ptr(), ptr as *mut _, mem::size_of::<usize>());
+            }
+        }
     }
 
     #[inline]
     ///Appends given string without any size checks
     pub unsafe fn push_str_unchecked(&mut self, text: &str) {
-        ptr::copy_nonoverlapping(text.as_ptr(), self.as_mut_ptr().offset(self.cursor as isize), text.len());
-        self.set_len(self.cursor.saturating_add(text.len() as u8));
+        ptr::copy_nonoverlapping(text.as_ptr(), self.as_mut_ptr().add(self.len()), text.len());
+        self.set_len(self.len().saturating_add(text.len()));
     }
 
     #[inline]
@@ -306,14 +386,12 @@ impl<const N: usize> StrBuf<N> {
         debug_assert!(self.remaining() >= bytes.len(), "Buffer overflow");
 
         let mut idx = 0;
+        let cursor = self.len();
         while idx < bytes.len() {
-            let cursor = self.cursor as usize + idx;
-            self.inner[cursor] = mem::MaybeUninit::new(bytes[idx]);
+            self.inner[cursor + idx] = mem::MaybeUninit::new(bytes[idx]);
             idx += 1;
         }
-        self.cursor = self.cursor.saturating_add(bytes.len() as u8);
-
-        self
+        self.const_set_len(cursor + bytes.len())
     }
 
     #[inline(always)]
@@ -321,8 +399,6 @@ impl<const N: usize> StrBuf<N> {
     ///
     ///Returns empty if nothing has been written into buffer yet.
     pub const fn as_str(&self) -> &str {
-        //You think I care?
-        //Make `from_utf8_unchecked` const fn first
         unsafe {
             core::str::from_utf8_unchecked(self.as_slice())
         }

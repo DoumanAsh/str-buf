@@ -22,7 +22,7 @@ mod tests {
 
     #[test]
     fn should_write_within_capacity() {
-        let mut text = StrBuf::<10>::new();
+        let mut text = StrBuf::<11>::new();
         uWrite::write_str(&mut text, "123456789").expect("Success");
         assert_eq!(text.len(), 9);
         uWrite::write_str(&mut text, "1").expect("Success");
