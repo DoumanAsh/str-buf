@@ -473,28 +473,28 @@ impl<const S: usize> AsRef<str> for StrBuf<S> {
     }
 }
 
-impl<const S: usize> core::fmt::Write for StrBuf<S> {
+impl<const S: usize> fmt::Write for StrBuf<S> {
     #[inline(always)]
-    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
         if self.push_str(s) == s.len() {
             Ok(())
         } else {
-            Err(core::fmt::Error)
+            Err(fmt::Error)
         }
     }
 }
 
-impl<const S: usize> core::fmt::Display for StrBuf<S> {
+impl<const S: usize> fmt::Display for StrBuf<S> {
     #[inline(always)]
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        f.write_str(self.as_str())
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(self.as_str(), fmt)
     }
 }
 
-impl<const S: usize> core::fmt::Debug for StrBuf<S> {
+impl<const S: usize> fmt::Debug for StrBuf<S> {
     #[inline(always)]
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        f.write_str(self.as_str())
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self.as_str(), fmt)
     }
 }
 
