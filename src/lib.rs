@@ -454,6 +454,16 @@ impl<const N: usize> StrBuf<N> {
             self.as_mut_slice().make_ascii_uppercase()
         }
     }
+
+    ///Removes last character from the buffer, if any present
+    pub fn pop(&mut self) -> Option<char> {
+        let ch = self.chars().rev().next()?;
+        let new_len = self.len() - ch.len_utf8();
+        unsafe {
+            self.set_len(new_len)
+        }
+        Some(ch)
+    }
 }
 
 impl<const S: usize> AsRef<str> for StrBuf<S> {

@@ -35,6 +35,11 @@ fn should_correctly_truncate_by_char_boundary() {
     assert_eq!(buf.push_str("ロリ"), 3);
     assert_eq!(buf, "ロ");
 
+    assert_eq!(buf.pop(), Some('ロ'));
+
+    assert_eq!(buf.push_str("ロリ"), 3);
+    assert_eq!(buf, "ロ");
+
     assert_eq!(buf.push_str("リ"), 0);
 
     assert_eq!(buf.push_str("r"), 1);
@@ -83,6 +88,11 @@ fn should_correctly_truncate_by_char_boundary_medium() {
     unsafe {
         buf.set_len(PADDING);
     }
+
+    assert_eq!(buf.push_str("ロリ"), 3);
+    assert_eq!(&buf[PADDING..], "ロ");
+
+    assert_eq!(buf.pop(), Some('ロ'));
 
     assert_eq!(buf.push_str("ロリ"), 3);
     assert_eq!(&buf[PADDING..], "ロ");
@@ -137,6 +147,13 @@ fn should_correctly_truncate_by_char_boundary_big() {
     unsafe {
         buf.set_len(PADDING);
     }
+
+    assert_eq!(buf.push_str("ロリ"), 3);
+    assert_eq!(&buf[PADDING..], "ロ");
+    assert_eq!(buf.len(), PADDING + "ロ".len());
+
+    assert_eq!(buf.pop(), Some('ロ'));
+
     assert_eq!(buf.push_str("ロリ"), 3);
     assert_eq!(&buf[PADDING..], "ロ");
     assert_eq!(buf.len(), PADDING + "ロ".len());
