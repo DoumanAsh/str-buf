@@ -76,10 +76,10 @@ pub const fn capacity(desired: usize) -> usize {
 ///
 ///const CONST_STR: MyStr = MyStr::new().and("hello").and(" ").and("world");
 ///
-///assert_eq!(CONST_STR.len(), "hello world".len());
+///assert_eq!(CONST_STR.len(), "hello world".len(), "Length should be 11 characters");
 ///assert_eq!(CONST_STR, "hello world");
 ///
-///assert_eq!(MyStr::capacity(), mem::size_of::<String>());
+///assert_eq!(MyStr::capacity(), mem::size_of::<String>(), "Should be equal to size of String");
 ///
 ///let text: MyStr = "test".try_into().expect("To fit string");
 ///assert_eq!("test", text);
@@ -87,7 +87,7 @@ pub const fn capacity(desired: usize) -> usize {
 ///let mut text = MyStr::new();
 ///let _ = write!(text, "test {}", "hello world");
 ///assert_eq!(text.as_str(), "test hello world");
-///assert_eq!(text.remaining(), MyStr::capacity() - "test hello world".len());
+///assert_eq!(text.remaining(), MyStr::capacity() - "test hello world".len(), "Should modify length");
 ///
 ///assert_eq!(text.push_str(" or maybe not"), 8); //Overflow!
 ///assert_eq!(text.as_str(), "test hello world or mayb");
@@ -105,15 +105,18 @@ pub struct StrBuf<const N: usize> {
 }
 
 impl<const N: usize> StrBuf<N> {
-    const CAPACITY: usize = if N == 0 {
-        N
+    ///Length of bytes used to store buffer's length
+    const LEN_OFFSET: usize = if N == 0 {
+        0
     } else if N <= CAPACITY_U8 {
-        N - 1
+        1
     } else if N <= CAPACITY_U16 {
-        N - 2
+        2
     } else {
-        N - mem::size_of::<usize>()
+        mem::size_of::<usize>()
     };
+
+    const CAPACITY: usize = N - Self::LEN_OFFSET;
 
     #[inline]
     ///Creates new instance
@@ -142,9 +145,9 @@ impl<const N: usize> StrBuf<N> {
         let mut idx = 0;
         let mut storage = [mem::MaybeUninit::<u8>::uninit(); N];
 
-        assert!(text.len() <= Self::CAPACITY, "Text cannot fit static storage");
+        debug_assert!(text.len() <= Self::CAPACITY, "Text cannot fit static storage");
         while idx < text.len() {
-            storage[idx] = mem::MaybeUninit::new(text.as_bytes()[idx]);
+            storage[Self::LEN_OFFSET + idx] = mem::MaybeUninit::new(text.as_bytes()[idx]);
             idx += 1;
         }
 
@@ -166,7 +169,7 @@ impl<const N: usize> StrBuf<N> {
     #[inline(always)]
     ///Reads byte at `idx`.
     pub const unsafe fn get_unchecked(&self, idx: usize) -> u8 {
-        self.inner[idx].assume_init()
+        self.inner[Self::LEN_OFFSET + idx].assume_init()
     }
 
     #[inline]
@@ -184,13 +187,17 @@ impl<const N: usize> StrBuf<N> {
     #[inline]
     ///Returns pointer  to the beginning of underlying buffer
     pub const fn as_ptr(&self) -> *const u8 {
-        self.inner.as_ptr() as _
+        unsafe {
+            self.inner.as_ptr().add(Self::LEN_OFFSET) as _
+        }
     }
 
     #[inline]
     ///Returns pointer  to the beginning of underlying buffer
     pub fn as_mut_ptr(&mut self) -> *mut u8 {
-        self.inner.as_mut_ptr() as *mut u8
+        unsafe {
+            self.inner.as_mut_ptr().add(Self::LEN_OFFSET) as *mut u8
+        }
     }
 
     #[inline]
@@ -233,7 +240,7 @@ impl<const N: usize> StrBuf<N> {
     ///Returns mutable slice with unwritten parts of the buffer.
     pub fn as_write_slice(&mut self) -> &mut [mem::MaybeUninit<u8>] {
         let len = self.len();
-        &mut self.inner[len..]
+        &mut self.inner[Self::LEN_OFFSET + len..]
     }
 
     #[inline(always)]
@@ -277,15 +284,15 @@ impl<const N: usize> StrBuf<N> {
             0
         } else if N <= CAPACITY_U8 {
             unsafe {
-                self.inner[Self::CAPACITY].assume_init() as _
+                self.inner[0].assume_init() as _
             }
         } else if N <= CAPACITY_U16 {
             unsafe {
-                u16::from_ne_bytes([self.inner[Self::CAPACITY].assume_init(), self.inner[Self::CAPACITY + 1].assume_init()]) as _
+                u16::from_ne_bytes(*(self.inner.as_ptr() as *const [u8; mem::size_of::<u16>()])) as usize
             }
         } else {
             unsafe {
-                usize::from_ne_bytes(*(self.inner.as_ptr().add(Self::CAPACITY) as *const [u8; mem::size_of::<usize>()]))
+                usize::from_ne_bytes(*(self.inner.as_ptr() as *const [u8; mem::size_of::<usize>()]))
             }
         }
     }
@@ -296,16 +303,16 @@ impl<const N: usize> StrBuf<N> {
         if N == 0 {
             //no length
         } else if N <= CAPACITY_U8 {
-            self.inner[Self::CAPACITY] = mem::MaybeUninit::new(len as _);
+            self.inner[0] = mem::MaybeUninit::new(len as _);
         } else if N <= CAPACITY_U16 {
             let len = (len as u16).to_ne_bytes();
-            self.inner[Self::CAPACITY] = mem::MaybeUninit::new(len[0]);
-            self.inner[Self::CAPACITY + 1] = mem::MaybeUninit::new(len[1]);
+            self.inner[0] = mem::MaybeUninit::new(len[0]);
+            self.inner[1] = mem::MaybeUninit::new(len[1]);
         } else {
             let len = len.to_ne_bytes();
             let mut idx = 0;
             loop {
-                self.inner[Self::CAPACITY + idx] = mem::MaybeUninit::new(len[idx]);
+                self.inner[idx] = mem::MaybeUninit::new(len[idx]);
                 idx = idx.saturating_add(1);
                 if idx >= len.len() {
                     break;
@@ -322,15 +329,15 @@ impl<const N: usize> StrBuf<N> {
         if N == 0 {
             //No length
         } else if N <= CAPACITY_U8 {
-            self.inner[Self::CAPACITY] = mem::MaybeUninit::new(len as _);
+            self.inner[0] = mem::MaybeUninit::new(len as _);
         } else if N <= CAPACITY_U16 {
             let len = (len as u16).to_ne_bytes();
-            self.inner[Self::CAPACITY] = mem::MaybeUninit::new(len[0]);
-            self.inner[Self::CAPACITY + 1] = mem::MaybeUninit::new(len[1]);
+            self.inner[0] = mem::MaybeUninit::new(len[0]);
+            self.inner[1] = mem::MaybeUninit::new(len[1]);
         } else {
             let len = len.to_ne_bytes();
             unsafe {
-                let ptr = self.inner.as_mut_ptr().add(Self::CAPACITY);
+                let ptr = self.inner.as_mut_ptr();
                 ptr::copy_nonoverlapping(len.as_ptr(), ptr as *mut _, mem::size_of::<usize>());
             }
         }
@@ -387,7 +394,7 @@ impl<const N: usize> StrBuf<N> {
         let mut idx = 0;
         let cursor = self.len();
         while idx < bytes.len() {
-            self.inner[cursor + idx] = mem::MaybeUninit::new(bytes[idx]);
+            self.inner[Self::LEN_OFFSET + cursor + idx] = mem::MaybeUninit::new(bytes[idx]);
             idx += 1;
         }
         self.const_set_len(cursor + bytes.len())
@@ -406,8 +413,8 @@ impl<const N: usize> StrBuf<N> {
     #[inline(always)]
     ///Modifies this string to convert all its characters into ASCII lower case equivalent
     pub const fn into_ascii_lowercase(mut self) -> Self {
-        let len = self.len();
-        let mut idx = 0;
+        let len = Self::LEN_OFFSET + self.len();
+        let mut idx = Self::LEN_OFFSET;
         loop {
             if idx >= len {
                 break;
@@ -432,8 +439,8 @@ impl<const N: usize> StrBuf<N> {
     #[inline(always)]
     ///Modifies this string to convert all its characters into ASCII upper case equivalent
     pub const fn into_ascii_uppercase(mut self) -> Self {
-        let len = self.len();
-        let mut idx = 0;
+        let len = Self::LEN_OFFSET + self.len();
+        let mut idx = Self::LEN_OFFSET;
         loop {
             if idx >= len {
                 break;
