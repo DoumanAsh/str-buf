@@ -1,8 +1,33 @@
 use str_buf::StrBuf;
 
+use core::fmt;
+
 type SmolStr = StrBuf<6>;
 type MediumStr = StrBuf<290>;
 type BigStr = StrBuf<67_000>;
+
+#[test]
+fn should_return_error_on_fmt_write_overflow() {
+    let mut buf = SmolStr::new();
+
+    fmt::Write::write_str(&mut buf, "rorリ").expect_err("Should error on overflow");
+    assert_eq!(buf, "ror");
+    assert_eq!(buf.len(), 3);
+
+    buf.clear();
+    buf.clear();
+
+    assert!(buf.pop().is_none());
+
+    fmt::Write::write_str(&mut buf, "ロri").expect("Should write fully");
+    assert_eq!(buf, "ロri");
+    assert_eq!(buf.len(), 5);
+
+    assert_eq!(buf.pop(), Some('i'));
+    assert_eq!(buf.pop(), Some('r'));
+    assert_eq!(buf.pop(), Some('ロ'));
+    assert!(buf.pop().is_none());
+}
 
 #[test]
 fn should_correctly_convert_ascii_case() {
