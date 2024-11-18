@@ -336,10 +336,8 @@ impl<const N: usize> StrBuf<N> {
             self.inner[1] = mem::MaybeUninit::new(len[1]);
         } else {
             let len = len.to_ne_bytes();
-            unsafe {
-                let ptr = self.inner.as_mut_ptr();
-                ptr::copy_nonoverlapping(len.as_ptr(), ptr as *mut _, mem::size_of::<usize>());
-            }
+            let ptr = self.inner.as_mut_ptr();
+            ptr::copy_nonoverlapping(len.as_ptr(), ptr as *mut _, mem::size_of::<usize>());
         }
     }
 
@@ -462,6 +460,84 @@ impl<const N: usize> StrBuf<N> {
         }
     }
 
+    ///Trims of whitespaces on the right in place.
+    pub fn make_trim(&mut self) {
+        let this = self.as_str();
+        let len = this.len();
+        let mut trim_left_count = 0usize;
+        let mut trim_right_count = 0usize;
+        let mut chars = this.chars();
+        while let Some(ch) = chars.next() {
+            if ch.is_whitespace() {
+                trim_left_count = trim_left_count.saturating_add(ch.len_utf8());
+            } else {
+                break;
+            }
+        }
+
+        for ch in chars.rev() {
+            if ch.is_whitespace() {
+                trim_right_count = trim_right_count.saturating_add(ch.len_utf8());
+            } else {
+                break;
+            }
+        }
+
+        let new_len = len.saturating_sub(trim_left_count).saturating_sub(trim_right_count);
+        if new_len != len {
+            unsafe {
+                //To make sure Miri doesn't complain, you have to derive both pointers from the same one otherwise Miri will 're-borrow' for no reason
+                let dest = self.as_mut_ptr();
+                let src = dest.add(trim_left_count) as *const _;
+                ptr::copy(src, dest, new_len);
+                self.set_len(new_len);
+            }
+        }
+    }
+
+    #[inline]
+    ///Trims of whitespaces on the right in place.
+    pub fn make_trim_left(&mut self) {
+        let this = self.as_str();
+        let len = this.len();
+        let mut trim_count = 0usize;
+        for ch in this.chars() {
+            if ch.is_whitespace() {
+                trim_count = trim_count.saturating_add(ch.len_utf8());
+            } else {
+                break;
+            }
+        }
+
+        let new_len = len.saturating_sub(trim_count);
+        unsafe {
+            let dest = self.as_mut_ptr();
+            let src = dest.add(trim_count);
+            ptr::copy(src, dest, new_len);
+            self.set_len(new_len);
+        }
+    }
+
+    #[inline]
+    ///Trims of whitespaces on the right in place.
+    pub fn make_trim_right(&mut self) {
+        let this = self.as_str();
+        let len = this.len();
+        let mut trim_count = 0usize;
+        for ch in this.chars().rev() {
+            if ch.is_whitespace() {
+                trim_count = trim_count.saturating_add(ch.len_utf8());
+            } else {
+                break;
+            }
+        }
+
+        unsafe {
+            self.set_len(len.saturating_sub(trim_count))
+        }
+    }
+
+    #[inline]
     ///Removes last character from the buffer, if any present
     pub fn pop(&mut self) -> Option<char> {
         let ch = self.chars().rev().next()?;

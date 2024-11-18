@@ -7,6 +7,33 @@ type MediumStr = StrBuf<290>;
 type BigStr = StrBuf<67_000>;
 
 #[test]
+fn should_trim() {
+    let mut string = MediumStr::from_str(" \ttest\t\n ");
+    string.make_trim();
+    assert_eq!(string, "test");
+    string.make_trim();
+    assert_eq!(string, "test");
+}
+
+#[test]
+fn should_trim_right() {
+    let mut string = MediumStr::from_str(" \ttest\t\n ");
+    string.make_trim_right();
+    assert_eq!(string, " \ttest");
+    string.make_trim_right();
+    assert_eq!(string, " \ttest");
+}
+
+#[test]
+fn should_trim_left() {
+    let mut string = MediumStr::from_str(" \ttest\t\n ");
+    string.make_trim_left();
+    assert_eq!(string, "test\t\n ");
+    string.make_trim_left();
+    assert_eq!(string, "test\t\n ");
+}
+
+#[test]
 fn should_return_error_on_fmt_write_overflow() {
     let mut buf = SmolStr::new();
 
