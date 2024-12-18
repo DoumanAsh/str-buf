@@ -106,7 +106,7 @@ pub struct StrBuf<const N: usize> {
 
 impl<const N: usize> StrBuf<N> {
     ///Length of bytes used to store buffer's length
-    const LEN_OFFSET: usize = if N == 0 {
+    pub const LEN_OFFSET: usize = if N == 0 {
         0
     } else if N <= CAPACITY_U8 {
         1
@@ -131,6 +131,8 @@ impl<const N: usize> StrBuf<N> {
     ///
     ///It is unsafe, because there is no guarantee that storage is correctly initialized with UTF-8
     ///bytes.
+    ///
+    ///First `Self::LEN_OFFSET` must be initialized with its length
     pub const unsafe fn from_storage(storage: [mem::MaybeUninit<u8>; N]) -> Self {
         debug_assert!(N <= usize::max_value(), "Capacity cannot exceed usize");
 
