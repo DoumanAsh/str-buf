@@ -462,7 +462,7 @@ impl<const N: usize> StrBuf<N> {
         }
     }
 
-    ///Trims of whitespaces on the right in place.
+    ///Trims of whitespaces around both ends of the string in place
     pub fn make_trim(&mut self) {
         let this = self.as_str();
         let len = this.len();
@@ -498,7 +498,7 @@ impl<const N: usize> StrBuf<N> {
     }
 
     #[inline]
-    ///Trims of whitespaces on the right in place.
+    ///Trims of whitespaces on the left in place.
     pub fn make_trim_left(&mut self) {
         let this = self.as_str();
         let len = this.len();
