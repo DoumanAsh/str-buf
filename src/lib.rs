@@ -301,7 +301,7 @@ impl<const N: usize> StrBuf<N> {
 
     #[inline(always)]
     ///Sets new length of the string.
-    const unsafe fn const_set_len(mut self, len: usize) -> Self {
+    pub const unsafe fn const_set_len(mut self, len: usize) -> Self {
         if N == 0 {
             //no length
         } else if N <= CAPACITY_U8 {
