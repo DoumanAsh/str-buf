@@ -1,6 +1,6 @@
 # str-buf
 
-![Rust](https://github.com/DoumanAsh/str-buf/workflows/Rust/badge.svg?branch=master)
+[![Rust](https://github.com/DoumanAsh/str-buf/actions/workflows/rust.yml/badge.svg)](https://github.com/DoumanAsh/str-buf/actions/workflows/rust.yml)
 [![Crates.io](https://img.shields.io/crates/v/str-buf.svg)](https://crates.io/crates/str-buf)
 [![Documentation](https://docs.rs/str-buf/badge.svg)](https://docs.rs/crate/str-buf/)
 
