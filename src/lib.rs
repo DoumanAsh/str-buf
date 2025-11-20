@@ -72,14 +72,20 @@ pub const fn capacity(desired: usize) -> usize {
 ///use core::fmt::Write;
 ///use core::convert::TryInto;
 ///
-///type MyStr = StrBuf::<{str_buf::capacity(mem::size_of::<String>())}>;
+///#[cfg(not(target_arch = "wasm32"))]
+///const STRING_SIZE: usize = mem::size_of::<String>();
+/////on WASM targets string is 12 bytes rather than 24
+///#[cfg(target_arch = "wasm32")]
+///const STRING_SIZE: usize = mem::size_of::<u64>() * 3;
+///
+///type MyStr = StrBuf::<{str_buf::capacity(STRING_SIZE)}>;
 ///
 ///const CONST_STR: MyStr = MyStr::new().and("hello").and(" ").and("world");
 ///
 ///assert_eq!(CONST_STR.len(), "hello world".len(), "Length should be 11 characters");
 ///assert_eq!(CONST_STR, "hello world");
 ///
-///assert_eq!(MyStr::capacity(), mem::size_of::<String>(), "Should be equal to size of String");
+///assert_eq!(MyStr::capacity(), STRING_SIZE, "Should be equal to size of String");
 ///
 ///let text: MyStr = "test".try_into().expect("To fit string");
 ///assert_eq!("test", text);
